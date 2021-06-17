@@ -1,0 +1,15 @@
+---
+# Test playbook
+
+- name: Try to notify with handler
+  lineinfile:
+    dest: a.txt
+    regexp: "testtest"
+    insertafter: "testtest"
+    line: "testtest"
+    state: present
+  notify: Restart mongo
+  tags: first_tag
+
+
+...

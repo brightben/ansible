@@ -1,0 +1,15 @@
+---
+# Hermes Deployment ansible playbook
+
+- name: Update apt Cache
+  apt:
+    update_cache: yes
+    force_apt_get: yes
+  become: true
+
+- name: Wait for APT Lock
+  shell: while fuser /var/lib/dpkg/lock >/dev/null 2>&1; do sleep 5; done;
+
+- name: Wait for APT Lock frontend
+  shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done;
+...

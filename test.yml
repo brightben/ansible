@@ -1,0 +1,27 @@
+---
+# Hermes Deployment ansible playbook
+
+- name: Clone all hermes project which need to build
+  hosts: localhost
+
+  vars:
+    build_component: "{{ lookup('env','BUILD_COMPONENT') | default('', true) }}"
+    deploy_version: "{{ CONTROL.auto_deploy.version | default('v0.0.0', true) }}"
+    deploy_env: "{{ lookup('env','BUILD_ENV') | default('staging', true) }}"
+
+  #vars_files:
+  #  - conf/deploy_version.yml
+
+  pre_tasks:
+  - name: test pre tasks
+    command: ls
+    tags: second_tag
+
+  roles:
+    - common
+
+  post_tasks:
+  - name: test post tasks
+    command: ls
+    tags: second_tag
+...

@@ -1,0 +1,63 @@
+---
+# Hermes Deployment ansible playbook
+
+- name: Check helm is existed or not
+  command: which helm
+  register: helm_exist
+  ignore_errors: True
+
+- name: Download helm client when not existed
+  get_url:
+    url: "https://storage.googleapis.com/kubernetes-helm/helm-v2.10.0-linux-amd64.tar.gz"
+    dest: /tmp/helm.tgz
+    mode: '0644'
+    sha256sum: "0fa2ed4983b1e4a3f90f776d08b88b0c73fd83f305b5b634175cb15e61342ffe"
+  when:
+    - helm_exist.rc == 1
+
+- name: Unarchive helm
+  unarchive:
+    src: /tmp/helm.tgz
+    dest: /tmp
+    remote_src: yes
+    mode: '0755'
+  when:
+    - helm_exist.rc == 1
+
+- name: Move helm binary to the correct position
+  copy:
+    src: /tmp/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    mode: '0755'
+    remote_src: yes
+  become: True
+  when:
+    - helm_exist.rc == 1
+
+- name: Delete all helm install file
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/helm.tgz
+    - /tmp/linux-amd64
+  when:
+    - helm_exist.rc == 1
+
+- name: Execute multiple shell script for create tiller server
+  shell: |
+    helm init
+    kubectl create serviceaccount --namespace kube-system tiller
+    kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+    kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+    helm init --service-account tiller --upgrade
+
+- name: Wait for node to be ready
+  shell: until helm ls >/dev/null 2>&1; do sleep 5; done;
+
+- name: Execute multiple shell script for adding helm repo
+  shell: |
+    helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com/
+    helm repo add cord https://charts.opencord.org
+    helm repo update
+...

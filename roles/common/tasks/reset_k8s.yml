@@ -1,0 +1,43 @@
+---
+# Hermes Deployment ansible playbook
+
+- name: Reset kubeadm without confirming
+  shell: |
+    kubeadm reset -f
+  ignore_errors: True
+  become: true
+
+- name: apt remove all k8s package
+  apt:
+    name:
+      - kubeadm
+      - kubectl
+      - kubelet
+      - kubernetes-cni
+    state: absent
+    purge: yes
+    autoremove: yes
+    force: yes
+  become: true
+
+- name: Clean up k8s file
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - ~/.kube
+    - /var/lib/cni/networks
+    - /etc/kubernetes
+  become: true
+
+- name: Create folders
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /var/lib/cni/networks
+    - /var/lib/cni/networks/cbr0
+    - /var/lib/cni/networks/flannel-net
+  become: true
+...

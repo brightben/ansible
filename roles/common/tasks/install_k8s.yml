@@ -1,0 +1,87 @@
+---
+# Hermes Deployment ansible playbook
+
+- name: Add k8s gpg key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+  become: true
+
+- name: Delete k8s repo list
+  file:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    state: absent
+  become: true
+
+- name: Add k8s apt repository
+  apt_repository:
+    repo: "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+    state: present
+    filename: kubernetes.list
+  become: true
+
+- name: Check apt update status
+  include_role:
+    name: common
+    tasks_from: wait_apt.yml
+
+- name: Use apt install k8s and docker.io package
+  apt:
+    name:
+      - containerd
+      - docker.io
+      - kubelet=1.14.10-00
+      - kubectl=1.14.10-00
+      - kubeadm=1.14.10-00
+    state: present
+    force_apt_get: yes
+  become: true
+
+- name: Disable SWAP (1/2)
+  shell: |
+    swapoff -a
+  become: true
+
+- name: Disable SWAP in fstab (2/2)
+  replace:
+    path: /etc/fstab
+    regexp: '^(?!#)(.+?swap+.*)$'
+    replace: '# \1'
+  become: true
+
+- name: kube init
+  command: kubeadm init --pod-network-cidr=192.168.0.0/16 -v=4
+  become: true
+
+- name: Create folders .kube
+  file:
+    path: "/home/jiahchen/.kube/"
+    state: directory
+    mode: '0755'
+
+- name: Copy from .kube config file
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/jiahchen/.kube/config
+    owner: jiahchen
+    group: jiahchen
+    mode: '0755'
+    remote_src: yes
+  become: true
+
+- name: Install Calico (1/2)
+  command: kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
+
+- name: Install Calico (2/2)
+  command: >
+    kubectl apply -f
+    https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
+
+- name: Taint master node could be deploy container
+  command: kubectl taint nodes --all node-role.kubernetes.io/master-
+
+- name: Wait for node to be ready
+  shell: "set -o pipefail && while kubectl get nodes | grep NotReady >/dev/null 2>&1; do sleep 5; done;"
+  args:
+    executable: /bin/bash
+...

@@ -1,0 +1,11 @@
+---
+# Handler
+
+- name: Restart mongo
+  service:
+    name: mongod
+    enabled: yes
+    state: restarted
+  become: true
+
+...
