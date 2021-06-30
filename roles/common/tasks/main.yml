@@ -10,6 +10,4 @@
     state: present
   notify: Restart mongo
   tags: first_tag
-
-
 ...
